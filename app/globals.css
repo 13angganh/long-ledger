@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+/* =========================================================================
+ * DESIGN TOKENS — Long Ledger "private ledger" premium (Bagian 3 brief)
+ * Arah: dark ink navy, bukan hitam pekat, layering depth, dua aksen redup
+ * (emerald + amber). JANGAN tambah warna aksen lain tanpa alasan kuat.
+ * ========================================================================= */
+:root {
+  /* Warna — Bagian 3.2 (hex final, jangan diubah tanpa diskusi) */
+  --bg-base: #14171f;
+  --bg-surface: #1c202b;
+  --bg-surface-hover: #232838;
+  --text-primary: #ede9e0;
+  --text-secondary: #9b9c9c;
+  --text-tertiary: #6b6c74;
+  --accent-emerald: #4a7861;
+  --accent-emerald-soft: #4a786122;
+  --accent-amber: #c9924d;
+  --accent-amber-soft: #c9924d22;
+  --border-hairline: #2a2f3d;
+  --danger: #b85c5c;
+  --danger-soft: #b85c5c22;
+
+  /* Type scale — Bagian 3.3 (12/14/16/20/28/40px), konsisten di seluruh app */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+
+  /* Spacing & radius — Bagian 3.4 */
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --space-card-padding: 24px;
+
+  /* Motion — Bagian 3.6 */
+  --transition-hover: 200ms ease-out;
+
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-geist-sans);
+}
+
+@theme inline {
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-surface-hover: var(--bg-surface-hover);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-accent-emerald: var(--accent-emerald);
+  --color-accent-emerald-soft: var(--accent-emerald-soft);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-amber-soft: var(--accent-amber-soft);
+  --color-border-hairline: var(--border-hairline);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+}
+
+* {
+  border-color: var(--border-hairline);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--text-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Signature interaction — Bagian 3.6: hover card elevasi halus */
+.card-interactive {
+  transition:
+    transform var(--transition-hover),
+    box-shadow var(--transition-hover),
+    background-color var(--transition-hover);
+}
+
+.card-interactive:hover {
+  transform: scale(1.01);
+  background-color: var(--bg-surface-hover);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Halo amber untuk item urgent (Bagian 3.6) — bukan badge merah mencolok */
+.halo-amber {
+  box-shadow: 0 0 0 1px var(--accent-amber-soft);
+  border-color: var(--accent-amber);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive {
+    transition: none;
+  }
+  .card-interactive:hover {
+    transform: none;
+  }
+}
