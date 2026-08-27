@@ -17,6 +17,11 @@ export interface Contact {
   lastEditedBy: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  /** Soft-delete (Poin 7): null = aktif, terisi = ada di Recycle Bin. */
+  deletedAt: Timestamp | null;
 }
 
-export type ContactInput = Omit<Contact, "id" | "createdAt" | "updatedAt">;
+export type ContactInput = Omit<
+  Contact,
+  "id" | "createdAt" | "updatedAt" | "deletedAt"
+>;

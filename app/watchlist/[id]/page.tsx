@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useWatchlist } from "@/lib/hooks/useWatchlist";
-import { updateWatchlistItem, deleteWatchlistItem } from "@/lib/repositories/watchlistRepo";
+import { updateWatchlistItem, softDeleteWatchlistItem } from "@/lib/repositories/watchlistRepo";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { LastEditedBy } from "@/components/shared/LastEditedBy";
 import { RatingStars } from "@/components/shared/RatingStars";
@@ -14,6 +14,10 @@ import { formatDateID } from "@/lib/format";
 
 function resolveEditorName(displayName: string | null, email: string | null): string {
   return displayName || email?.split("@")[0] || "Pengguna";
+}
+
+function toDateInputValue(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 export default function WatchlistDetailPage() {
@@ -30,6 +34,8 @@ export default function WatchlistDetailPage() {
   const [status, setStatus] = useState<WatchlistStatus>("planned");
   const [rating, setRating] = useState<number | null>(null);
   const [note, setNote] = useState("");
+  const [startedAtInput, setStartedAtInput] = useState("");
+  const [completedAtInput, setCompletedAtInput] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -42,6 +48,8 @@ export default function WatchlistDetailPage() {
     setStatus(item.status);
     setRating(item.rating);
     setNote(item.note);
+    setStartedAtInput(item.startedAt ? toDateInputValue(item.startedAt.toDate()) : "");
+    setCompletedAtInput(item.completedAt ? toDateInputValue(item.completedAt.toDate()) : "");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -55,16 +63,20 @@ export default function WatchlistDetailPage() {
 
       // Transisi status otomatis mengisi startedAt/completedAt (Bagian 6.1c
       // implisit — progress tracking butuh timestamp transisi, bukan cuma
-      // status akhir).
+      // status akhir). Poin 12: user tetap bisa KOREKSI tanggal manual lewat
+      // field date-input di bawah kalau momennya bukan hari ini persis.
       let startedAt = item.startedAt;
       let completedAt = item.completedAt;
-      if (status === "in_progress" && item.status !== "in_progress") {
+      if (status === "in_progress" && item.status !== "in_progress" && !startedAt) {
         startedAt = Timestamp.now();
       }
       if (status === "completed" && item.status !== "completed") {
         completedAt = Timestamp.now();
         if (!startedAt) startedAt = Timestamp.now();
       }
+      // Override dengan input manual kalau user mengubahnya di form.
+      if (startedAtInput) startedAt = Timestamp.fromDate(new Date(startedAtInput));
+      if (completedAtInput) completedAt = Timestamp.fromDate(new Date(completedAtInput));
 
       await updateWatchlistItem(user.uid, item.id, {
         title: title.trim(),
@@ -85,7 +97,8 @@ export default function WatchlistDetailPage() {
 
   async function handleDelete() {
     if (!user || !item) return;
-    await deleteWatchlistItem(user.uid, item.id);
+    const editorName = resolveEditorName(user.displayName, user.email);
+    await softDeleteWatchlistItem(user.uid, item.id, editorName, item.title);
     router.push("/watchlist");
   }
 
@@ -167,6 +180,30 @@ export default function WatchlistDetailPage() {
           </select>
         </Field>
 
+        {(status === "in_progress" || status === "completed") && (
+          <Field label="Tanggal mulai" htmlFor="startedAtInput">
+            <input
+              id="startedAtInput"
+              type="date"
+              value={startedAtInput}
+              onChange={(e) => setStartedAtInput(e.target.value)}
+              className="w-full rounded-control border border-border-hairline bg-bg-base px-3.5 py-2.5 text-text-primary outline-none focus:border-accent-emerald"
+            />
+          </Field>
+        )}
+
+        {status === "completed" && (
+          <Field label="Tanggal selesai" htmlFor="completedAtInput">
+            <input
+              id="completedAtInput"
+              type="date"
+              value={completedAtInput}
+              onChange={(e) => setCompletedAtInput(e.target.value)}
+              className="w-full rounded-control border border-border-hairline bg-bg-base px-3.5 py-2.5 text-text-primary outline-none focus:border-accent-emerald"
+            />
+          </Field>
+        )}
+
         {status === "completed" && (
           <Field label="Rating" htmlFor="rating">
             <RatingStars value={rating} onChange={setRating} size={22} />
@@ -195,7 +232,7 @@ export default function WatchlistDetailPage() {
             onClick={() => setConfirmOpen(true)}
             className="rounded-control border border-danger/40 px-4 py-2.5 text-sm text-danger hover:bg-danger-soft"
           >
-            Hapus
+            Pindahkan ke Recycle Bin
           </button>
           <button
             type="submit"
@@ -209,9 +246,9 @@ export default function WatchlistDetailPage() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Hapus item ini?"
-        description="Tindakan ini tidak bisa dibatalkan."
-        confirmLabel="Hapus"
+        title="Pindahkan ke Recycle Bin?"
+        description="Item akan dipindah ke Recycle Bin dan bisa dipulihkan kapan saja dalam 30 hari sebelum terhapus permanen."
+        confirmLabel="Pindahkan"
         onConfirm={handleDelete}
         onCancel={() => setConfirmOpen(false)}
       />

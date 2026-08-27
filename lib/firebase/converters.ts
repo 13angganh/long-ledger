@@ -9,6 +9,7 @@ import type { Investment } from "@/lib/types/investment";
 import type { Subscription } from "@/lib/types/subscription";
 import type { WatchlistItem } from "@/lib/types/watchlist";
 import type { Contact } from "@/lib/types/contact";
+import type { ActivityLogEntry } from "@/lib/types/activityLog";
 
 /**
  * SATU-SATUNYA tempat definisi Firestore data converters (Bagian 4.2).
@@ -41,3 +42,4 @@ export const investmentConverter = makeConverter<Investment>();
 export const subscriptionConverter = makeConverter<Subscription>();
 export const watchlistItemConverter = makeConverter<WatchlistItem>();
 export const contactConverter = makeConverter<Contact>();
+export const activityLogConverter = makeConverter<ActivityLogEntry>();

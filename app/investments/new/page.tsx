@@ -191,13 +191,16 @@ export default function NewInvestmentPage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 border-t border-border-hairline pt-5">
-          <Field label="Target jual (opsional)" htmlFor="targetSellPrice">
-            <CurrencyInput id="targetSellPrice" value={targetSellPrice} onChange={setTargetSellPrice} />
-          </Field>
-          <Field label="Target beli kembali (opsional)" htmlFor="targetBuybackPrice">
-            <CurrencyInput id="targetBuybackPrice" value={targetBuybackPrice} onChange={setTargetBuybackPrice} />
-          </Field>
+        <div className="flex flex-col gap-3 border-t border-border-hairline pt-5">
+          <p className="text-sm text-text-secondary">Target harga (opsional)</p>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Target jual" htmlFor="targetSellPrice">
+              <CurrencyInput id="targetSellPrice" value={targetSellPrice} onChange={setTargetSellPrice} />
+            </Field>
+            <Field label="Target beli kembali" htmlFor="targetBuybackPrice">
+              <CurrencyInput id="targetBuybackPrice" value={targetBuybackPrice} onChange={setTargetBuybackPrice} />
+            </Field>
+          </div>
         </div>
 
         <Field label="Catatan (opsional)" htmlFor="note">

@@ -1,4 +1,6 @@
 import type { Subscription } from "@/lib/types/subscription";
+import type { Owner } from "@/lib/types/transaction";
+import { OWNER_LABELS } from "@/lib/types/transaction";
 
 /**
  * SATU-SATUNYA lapisan yang menghitung logic agregasi/turunan untuk data
@@ -75,4 +77,35 @@ export function filterBySubscriptionCategory(
 ): Subscription[] {
   if (!category) return subscriptions;
   return subscriptions.filter((s) => s.category === category);
+}
+
+/** Filter subscription berdasarkan pemilik (suami/istri). */
+export function filterBySubscriptionOwner(
+  subscriptions: Subscription[],
+  owner: Owner | null
+): Subscription[] {
+  if (!owner) return subscriptions;
+  return subscriptions.filter((s) => s.owner === owner);
+}
+
+export interface OwnerSpend {
+  owner: Owner;
+  label: string;
+  monthlySpend: number;
+}
+
+/** Poin 11: total spend bulanan (dinormalisasi) per pemilik. */
+export function getMonthlySpendByOwner(subscriptions: Subscription[]): OwnerSpend[] {
+  const active = onlyActive(subscriptions);
+  const totals: Record<Owner, number> = { suami: 0, istri: 0 };
+
+  for (const sub of active) {
+    totals[sub.owner] += toMonthlyEquivalent(sub);
+  }
+
+  return (Object.keys(totals) as Owner[]).map((owner) => ({
+    owner,
+    label: OWNER_LABELS[owner],
+    monthlySpend: totals[owner],
+  }));
 }

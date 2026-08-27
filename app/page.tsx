@@ -1,22 +1,23 @@
+"use client";
+
+import { useAuth } from "@/lib/hooks/useAuth";
+import { getGreeting, getFirstName } from "@/lib/greeting";
 import { FinanceSummaryCard } from "@/components/dashboard/FinanceSummaryCard";
 import { InvestmentSummaryCard } from "@/components/dashboard/InvestmentSummaryCard";
 import { SubscriptionSummaryCard } from "@/components/dashboard/SubscriptionSummaryCard";
 import { WatchlistProgressCard } from "@/components/dashboard/WatchlistProgressCard";
 import { ContactReminderCard } from "@/components/dashboard/ContactReminderCard";
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 11) return "Selamat pagi";
-  if (hour < 15) return "Selamat siang";
-  if (hour < 18) return "Selamat sore";
-  return "Selamat malam";
-}
-
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const firstName = getFirstName(user?.displayName ?? null);
+  const greeting = getGreeting();
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl" style={{ fontFamily: "var(--font-display)" }}>
-        {getGreeting()}
+        {greeting}
+        {firstName ? `, ${firstName}` : ""}
       </h1>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

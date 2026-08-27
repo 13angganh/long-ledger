@@ -69,6 +69,10 @@
 
 html {
   color-scheme: dark;
+  /* Poin 2: matikan double-tap zoom & pinch-zoom gesture di seluruh app,
+     lapisan kedua selain meta viewport (beberapa browser Android tidak
+     100% patuh userScalable:false lewat meta tag saja). */
+  touch-action: manipulation;
 }
 
 body {
@@ -77,6 +81,7 @@ body {
   font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   font-size: var(--text-base);
   -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
 }
 
 /* Signature interaction — Bagian 3.6: hover card elevasi halus */

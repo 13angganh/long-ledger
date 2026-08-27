@@ -32,6 +32,10 @@ export const viewport: Viewport = {
   themeColor: "#14171F",
   width: "device-width",
   initialScale: 1,
+  // Poin 2 permintaan user: kunci pinch-zoom di seluruh app — semua
+  // tampilan sudah diuji cukup lewat scroll saja tanpa perlu zoom.
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

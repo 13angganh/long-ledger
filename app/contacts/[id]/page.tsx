@@ -8,7 +8,7 @@ import { useAppMeta } from "@/lib/hooks/useAppMeta";
 import { useContacts } from "@/lib/hooks/useContacts";
 import {
   updateContact,
-  deleteContact,
+  softDeleteContact,
   markContactedNow,
 } from "@/lib/repositories/contactRepo";
 import { addContactTags } from "@/lib/repositories/metaRepo";
@@ -105,7 +105,8 @@ export default function ContactDetailPage() {
 
   async function handleDelete() {
     if (!user || !contact) return;
-    await deleteContact(user.uid, contact.id);
+    const editorName = resolveEditorName(user.displayName, user.email);
+    await softDeleteContact(user.uid, contact.id, editorName, contact.name);
     router.push("/contacts");
   }
 
@@ -215,7 +216,7 @@ export default function ContactDetailPage() {
             onClick={() => setConfirmOpen(true)}
             className="rounded-control border border-danger/40 px-4 py-2.5 text-sm text-danger hover:bg-danger-soft"
           >
-            Hapus
+            Pindahkan ke Recycle Bin
           </button>
           <button
             type="submit"
@@ -229,9 +230,9 @@ export default function ContactDetailPage() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Hapus kontak ini?"
-        description="Tindakan ini tidak bisa dibatalkan."
-        confirmLabel="Hapus"
+        title="Pindahkan ke Recycle Bin?"
+        description="Kontak akan dipindah ke Recycle Bin dan bisa dipulihkan kapan saja dalam 30 hari sebelum terhapus permanen."
+        confirmLabel="Pindahkan"
         onConfirm={handleDelete}
         onCancel={() => setConfirmOpen(false)}
       />

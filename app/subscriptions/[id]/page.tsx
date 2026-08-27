@@ -6,13 +6,14 @@ import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useAppMeta } from "@/lib/hooks/useAppMeta";
 import { useSubscriptions } from "@/lib/hooks/useSubscriptions";
-import { updateSubscription, deleteSubscription } from "@/lib/repositories/subscriptionRepo";
+import { updateSubscription, softDeleteSubscription } from "@/lib/repositories/subscriptionRepo";
 import { addSubscriptionCategory } from "@/lib/repositories/metaRepo";
 import { CurrencyInput } from "@/components/shared/CurrencyInput";
 import { TagInput } from "@/components/shared/TagInput";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { LastEditedBy } from "@/components/shared/LastEditedBy";
 import type { BillingCycle, SubscriptionStatus } from "@/lib/types/subscription";
+import { OWNER_LABELS, type Owner } from "@/lib/types/transaction";
 
 function resolveEditorName(displayName: string | null, email: string | null): string {
   return displayName || email?.split("@")[0] || "Pengguna";
@@ -37,6 +38,7 @@ export default function SubscriptionDetailPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [nextRenewalDate, setNextRenewalDate] = useState(toDateInputValue(new Date()));
   const [category, setCategory] = useState("");
+  const [owner, setOwner] = useState<Owner>("suami");
   const [status, setStatus] = useState<SubscriptionStatus>("active");
   const [reminderDaysBefore, setReminderDaysBefore] = useState(3);
 
@@ -51,6 +53,7 @@ export default function SubscriptionDetailPage() {
     setBillingCycle(subscription.billingCycle);
     setNextRenewalDate(toDateInputValue(subscription.nextRenewalDate.toDate()));
     setCategory(subscription.category);
+    setOwner(subscription.owner);
     setStatus(subscription.status);
     setReminderDaysBefore(subscription.reminderDaysBefore);
   }
@@ -76,6 +79,7 @@ export default function SubscriptionDetailPage() {
         status,
         reminderDaysBefore,
         lastEditedBy: editorName,
+        owner,
       });
       if (category.trim()) {
         await addSubscriptionCategory(user.uid, category.trim());
@@ -89,7 +93,8 @@ export default function SubscriptionDetailPage() {
 
   async function handleDelete() {
     if (!user || !subscription) return;
-    await deleteSubscription(user.uid, subscription.id);
+    const editorName = resolveEditorName(user.displayName, user.email);
+    await softDeleteSubscription(user.uid, subscription.id, editorName, subscription.name);
     router.push("/subscriptions");
   }
 
@@ -168,6 +173,25 @@ export default function SubscriptionDetailPage() {
           />
         </Field>
 
+        <Field label="Pemilik" htmlFor="owner">
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.entries(OWNER_LABELS) as [Owner, string][]).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setOwner(value)}
+                className={`rounded-control border px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
+                  owner === value
+                    ? "border-accent-emerald bg-accent-emerald-soft text-text-primary"
+                    : "border-border-hairline text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
         <Field label="Status" htmlFor="status">
           <select
             id="status"
@@ -204,7 +228,7 @@ export default function SubscriptionDetailPage() {
             onClick={() => setConfirmOpen(true)}
             className="rounded-control border border-danger/40 px-4 py-2.5 text-sm text-danger hover:bg-danger-soft"
           >
-            Hapus
+            Pindahkan ke Recycle Bin
           </button>
           <button
             type="submit"
@@ -218,9 +242,9 @@ export default function SubscriptionDetailPage() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Hapus langganan ini?"
-        description="Tindakan ini tidak bisa dibatalkan."
-        confirmLabel="Hapus"
+        title="Pindahkan ke Recycle Bin?"
+        description="Langganan akan dipindah ke Recycle Bin dan bisa dipulihkan kapan saja dalam 30 hari sebelum terhapus permanen."
+        confirmLabel="Pindahkan"
         onConfirm={handleDelete}
         onCancel={() => setConfirmOpen(false)}
       />

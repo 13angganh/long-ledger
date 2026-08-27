@@ -15,11 +15,13 @@ export interface WatchlistItem {
   lastEditedBy: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  /** Soft-delete (Poin 7): null = aktif, terisi = ada di Recycle Bin. */
+  deletedAt: Timestamp | null;
 }
 
 export type WatchlistItemInput = Omit<
   WatchlistItem,
-  "id" | "createdAt" | "updatedAt"
+  "id" | "createdAt" | "updatedAt" | "deletedAt"
 >;
 
 export const WATCHLIST_TYPE_LABELS: Record<WatchlistType, string> = {

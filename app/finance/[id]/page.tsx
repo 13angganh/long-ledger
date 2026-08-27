@@ -8,14 +8,21 @@ import { useAppMeta } from "@/lib/hooks/useAppMeta";
 import { useTransactions } from "@/lib/hooks/useTransactions";
 import {
   updateTransaction,
-  deleteTransaction,
+  softDeleteTransaction,
 } from "@/lib/repositories/transactionRepo";
 import { addFinanceCategory } from "@/lib/repositories/metaRepo";
 import { CurrencyInput } from "@/components/shared/CurrencyInput";
 import { TagInput } from "@/components/shared/TagInput";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { LastEditedBy } from "@/components/shared/LastEditedBy";
-import type { TransactionType } from "@/lib/types/transaction";
+import { Badge } from "@/components/ui/Badge";
+import {
+  ACCOUNT_TYPE_LABELS,
+  OWNER_LABELS,
+  type TransactionType,
+  type AccountType,
+  type Owner,
+} from "@/lib/types/transaction";
 
 function resolveEditorName(displayName: string | null, email: string | null): string {
   return displayName || email?.split("@")[0] || "Pengguna";
@@ -33,12 +40,15 @@ export default function TransactionDetailPage() {
   const router = useRouter();
 
   const transaction = transactions.find((t) => t.id === id);
+  const isTransfer = transaction?.type === "transfer";
 
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState(0);
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(toDateInputValue(new Date()));
+  const [accountType, setAccountType] = useState<AccountType>("cash");
+  const [owner, setOwner] = useState<Owner>("suami");
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +65,8 @@ export default function TransactionDetailPage() {
     setCategory(transaction.category);
     setNote(transaction.note);
     setDate(toDateInputValue(transaction.date.toDate()));
+    setAccountType(transaction.accountType);
+    setOwner(transaction.owner);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -69,16 +81,32 @@ export default function TransactionDetailPage() {
     setError(null);
     try {
       const editorName = resolveEditorName(user.displayName, user.email);
-      await updateTransaction(user.uid, transaction.id, {
-        type,
-        amount,
-        category: category.trim(),
-        note: note.trim(),
-        date: Timestamp.fromDate(new Date(date)),
-        lastEditedBy: editorName,
-      });
-      if (category.trim()) {
-        await addFinanceCategory(user.uid, category.trim());
+
+      if (isTransfer) {
+        // Transfer: hanya jumlah, tanggal, catatan yang aman diubah sepihak
+        // — tipe/akun tidak diubah dari sini karena akan bikin dua sisi
+        // pasangan jadi tidak sinkron. Untuk ubah akun/arah, hapus dan
+        // buat transfer baru.
+        await updateTransaction(user.uid, transaction.id, {
+          amount,
+          note: note.trim(),
+          date: Timestamp.fromDate(new Date(date)),
+          lastEditedBy: editorName,
+        });
+      } else {
+        await updateTransaction(user.uid, transaction.id, {
+          type,
+          amount,
+          category: category.trim(),
+          note: note.trim(),
+          date: Timestamp.fromDate(new Date(date)),
+          lastEditedBy: editorName,
+          accountType,
+          owner,
+        });
+        if (category.trim()) {
+          await addFinanceCategory(user.uid, category.trim());
+        }
       }
       router.push("/finance");
     } catch {
@@ -89,7 +117,14 @@ export default function TransactionDetailPage() {
 
   async function handleDelete() {
     if (!user || !transaction) return;
-    await deleteTransaction(user.uid, transaction.id);
+    const editorName = resolveEditorName(user.displayName, user.email);
+    await softDeleteTransaction(
+      user.uid,
+      transaction.id,
+      editorName,
+      transaction.category || "Transaksi",
+      transaction.transferPairId
+    );
     router.push("/finance");
   }
 
@@ -112,38 +147,84 @@ export default function TransactionDetailPage() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl" style={{ fontFamily: "var(--font-display)" }}>
-          Detail transaksi
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl" style={{ fontFamily: "var(--font-display)" }}>
+            Detail transaksi
+          </h1>
+          {isTransfer && <Badge tone="amber">Transfer</Badge>}
+        </div>
         <LastEditedBy name={transaction.lastEditedBy} size="md" />
       </div>
 
+      {isTransfer && (
+        <p className="rounded-control border border-accent-amber/30 bg-accent-amber-soft px-4 py-3 text-xs text-text-secondary">
+          Ini bagian dari transfer {ACCOUNT_TYPE_LABELS[transaction.accountType]} →{" "}
+          {transaction.transferToAccountType && ACCOUNT_TYPE_LABELS[transaction.transferToAccountType]}.
+          Tipe dan akun tidak bisa diubah di sini — hapus dan buat transfer
+          baru kalau perlu ganti arah/akun.
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="grid grid-cols-2 gap-2">
-          <TypeButton
-            label="Pengeluaran"
-            active={type === "expense"}
-            onClick={() => setType("expense")}
-          />
-          <TypeButton
-            label="Pemasukan"
-            active={type === "income"}
-            onClick={() => setType("income")}
-          />
-        </div>
+        {!isTransfer && (
+          <div className="grid grid-cols-2 gap-2">
+            <TypeButton
+              label="Pengeluaran"
+              active={type === "expense"}
+              onClick={() => setType("expense")}
+            />
+            <TypeButton
+              label="Pemasukan"
+              active={type === "income"}
+              onClick={() => setType("income")}
+            />
+          </div>
+        )}
 
         <Field label="Jumlah" htmlFor="amount">
           <CurrencyInput id="amount" value={amount} onChange={setAmount} required />
         </Field>
 
-        <Field label="Kategori" htmlFor="category">
-          <TagInput
-            id="category"
-            value={category}
-            onChange={setCategory}
-            suggestions={meta.categories.finance}
-          />
-        </Field>
+        {!isTransfer && (
+          <>
+            <Field label="Akun" htmlFor="accountType">
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(ACCOUNT_TYPE_LABELS) as [AccountType, string][]).map(
+                  ([value, label]) => (
+                    <TypeButton
+                      key={value}
+                      label={label}
+                      active={accountType === value}
+                      onClick={() => setAccountType(value)}
+                    />
+                  )
+                )}
+              </div>
+            </Field>
+
+            <Field label="Pemilik" htmlFor="owner">
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(OWNER_LABELS) as [Owner, string][]).map(([value, label]) => (
+                  <TypeButton
+                    key={value}
+                    label={label}
+                    active={owner === value}
+                    onClick={() => setOwner(value)}
+                  />
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Kategori" htmlFor="category">
+              <TagInput
+                id="category"
+                value={category}
+                onChange={setCategory}
+                suggestions={meta.categories.finance}
+              />
+            </Field>
+          </>
+        )}
 
         <Field label="Tanggal" htmlFor="date">
           <input
@@ -178,7 +259,7 @@ export default function TransactionDetailPage() {
             onClick={() => setConfirmOpen(true)}
             className="rounded-control border border-danger/40 px-4 py-2.5 text-sm text-danger hover:bg-danger-soft"
           >
-            Hapus
+            Pindahkan ke Recycle Bin
           </button>
           <button
             type="submit"
@@ -192,9 +273,13 @@ export default function TransactionDetailPage() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Hapus transaksi ini?"
-        description="Tindakan ini tidak bisa dibatalkan."
-        confirmLabel="Hapus"
+        title="Pindahkan ke Recycle Bin?"
+        description={
+          isTransfer
+            ? "Ini bagian dari transfer — kedua sisi (asal & tujuan) akan dipindah ke Recycle Bin bersamaan."
+            : "Transaksi akan dipindah ke Recycle Bin dan bisa dipulihkan kapan saja dalam 30 hari sebelum terhapus permanen."
+        }
+        confirmLabel="Pindahkan"
         onConfirm={handleDelete}
         onCancel={() => setConfirmOpen(false)}
       />

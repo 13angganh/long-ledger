@@ -3,20 +3,22 @@ import {
   doc,
   addDoc,
   updateDoc,
-  deleteDoc,
   onSnapshot,
   query,
   orderBy,
   serverTimestamp,
+  Timestamp,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { watchlistItemConverter } from "@/lib/firebase/converters";
 import type { WatchlistItem, WatchlistItemInput } from "@/lib/types/watchlist";
+import { logActivity } from "@/lib/repositories/activityLogRepo";
 
 /**
  * SATU-SATUNYA lapisan yang bicara ke Firestore untuk watchlistItems
- * (Bagian 4.2). Ikuti pola transactionRepo.ts persis.
+ * (Bagian 4.2). Hapus bersifat SOFT-DELETE (Poin 7) — lihat catatan
+ * lengkap di transactionRepo.ts. Hapus permanen ada di trashRepo.ts.
  */
 
 function watchlistCollection(userId: string) {
@@ -44,9 +46,17 @@ export async function createWatchlistItem(
 ): Promise<string> {
   const ref = await addDoc(watchlistCollection(userId), {
     ...input,
+    deletedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   } as WatchlistItemInput);
+  await logActivity(userId, {
+    module: "watchlist",
+    action: "create",
+    targetId: ref.id,
+    targetLabel: input.title,
+    actorName: input.lastEditedBy,
+  });
   return ref.id;
 }
 
@@ -57,12 +67,53 @@ export async function updateWatchlistItem(
 ): Promise<void> {
   const ref = doc(db, "users", userId, "watchlistItems", itemId);
   await updateDoc(ref, { ...input, updatedAt: serverTimestamp() });
+  await logActivity(userId, {
+    module: "watchlist",
+    action: "update",
+    targetId: itemId,
+    targetLabel: input.title ?? "Item watchlist",
+    actorName: input.lastEditedBy ?? "Pengguna",
+  });
 }
 
-export async function deleteWatchlistItem(
+export async function softDeleteWatchlistItem(
   userId: string,
-  itemId: string
+  itemId: string,
+  actorName: string,
+  targetLabel: string
 ): Promise<void> {
   const ref = doc(db, "users", userId, "watchlistItems", itemId);
-  await deleteDoc(ref);
+  await updateDoc(ref, {
+    deletedAt: Timestamp.now(),
+    lastEditedBy: actorName,
+    updatedAt: serverTimestamp(),
+  });
+  await logActivity(userId, {
+    module: "watchlist",
+    action: "delete",
+    targetId: itemId,
+    targetLabel,
+    actorName,
+  });
+}
+
+export async function restoreWatchlistItem(
+  userId: string,
+  itemId: string,
+  actorName: string,
+  targetLabel: string
+): Promise<void> {
+  const ref = doc(db, "users", userId, "watchlistItems", itemId);
+  await updateDoc(ref, {
+    deletedAt: null,
+    lastEditedBy: actorName,
+    updatedAt: serverTimestamp(),
+  });
+  await logActivity(userId, {
+    module: "watchlist",
+    action: "restore",
+    targetId: itemId,
+    targetLabel,
+    actorName,
+  });
 }

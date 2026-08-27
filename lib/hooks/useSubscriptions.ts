@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { subscribeToSubscriptions } from "@/lib/repositories/subscriptionRepo";
 import type { Subscription } from "@/lib/types/subscription";
 
 interface UseSubscriptionsResult {
   subscriptions: Subscription[];
+  deletedSubscriptions: Subscription[];
   loading: boolean;
   error: string | null;
 }
 
 export function useSubscriptions(): UseSubscriptionsResult {
   const { user } = useAuth();
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [rawSubscriptions, setRawSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +24,7 @@ export function useSubscriptions(): UseSubscriptionsResult {
     const unsubscribe = subscribeToSubscriptions(
       user.uid,
       (data) => {
-        setSubscriptions(data);
+        setRawSubscriptions(data);
         setLoading(false);
         setError(null);
       },
@@ -39,9 +40,18 @@ export function useSubscriptions(): UseSubscriptionsResult {
   const [syncedUser, setSyncedUser] = useState(user);
   if (user !== syncedUser) {
     setSyncedUser(user);
-    setSubscriptions([]);
+    setRawSubscriptions([]);
     setLoading(user ? true : false);
   }
 
-  return { subscriptions, loading, error };
+  const subscriptions = useMemo(
+    () => rawSubscriptions.filter((s) => s.deletedAt === null),
+    [rawSubscriptions]
+  );
+  const deletedSubscriptions = useMemo(
+    () => rawSubscriptions.filter((s) => s.deletedAt !== null),
+    [rawSubscriptions]
+  );
+
+  return { subscriptions, deletedSubscriptions, loading, error };
 }

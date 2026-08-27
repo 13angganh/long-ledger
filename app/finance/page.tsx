@@ -5,13 +5,16 @@ import Link from "next/link";
 import { useTransactions } from "@/lib/hooks/useTransactions";
 import {
   getMonthlyTotal,
+  getBalanceByAccount,
   filterByCategory,
   filterByType,
+  filterByOwner,
 } from "@/lib/selectors/financeSelectors";
 import { TransactionListItem } from "@/components/shared/TransactionListItem";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LedgerLinesIcon } from "@/components/ui/icons";
 import { formatIDR } from "@/lib/format";
+import { OWNER_LABELS, type Owner } from "@/lib/types/transaction";
 import type { Transaction } from "@/lib/types/transaction";
 
 type TypeFilter = Transaction["type"] | null;
@@ -20,8 +23,10 @@ export default function FinancePage() {
   const { transactions, loading, error } = useTransactions();
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [ownerFilter, setOwnerFilter] = useState<Owner | null>(null);
 
   const monthlyTotal = useMemo(() => getMonthlyTotal(transactions), [transactions]);
+  const balances = useMemo(() => getBalanceByAccount(transactions), [transactions]);
 
   const categories = useMemo(() => {
     const set = new Set(transactions.map((t) => t.category).filter(Boolean));
@@ -31,8 +36,9 @@ export default function FinancePage() {
   const filtered = useMemo(() => {
     let result = filterByType(transactions, typeFilter);
     result = filterByCategory(result, categoryFilter);
+    result = filterByOwner(result, ownerFilter);
     return result;
-  }, [transactions, typeFilter, categoryFilter]);
+  }, [transactions, typeFilter, categoryFilter, ownerFilter]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,6 +55,21 @@ export default function FinancePage() {
         >
           + Transaksi
         </Link>
+      </div>
+
+      {/* Saldo per akun (Poin 9) */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        {balances.map((b) => (
+          <div key={b.accountType} className="rounded-card border border-border-hairline bg-bg-surface p-3 sm:p-4">
+            <p className="text-xs text-text-tertiary">Saldo {b.label}</p>
+            <p
+              className="mt-1 text-sm sm:text-lg"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {formatIDR(b.balance)}
+            </p>
+          </div>
+        ))}
       </div>
 
       {/* Summary bulan ini */}
@@ -99,6 +120,23 @@ export default function FinancePage() {
           active={typeFilter === "expense"}
           onClick={() => setTypeFilter("expense")}
         />
+        <FilterChip
+          label="Transfer"
+          active={typeFilter === "transfer"}
+          onClick={() => setTypeFilter("transfer")}
+        />
+        <select
+          value={ownerFilter ?? ""}
+          onChange={(e) => setOwnerFilter((e.target.value || null) as Owner | null)}
+          className="rounded-control border border-border-hairline bg-bg-surface px-3 py-1.5 text-sm text-text-secondary outline-none focus:border-accent-emerald"
+        >
+          <option value="">Semua pemilik</option>
+          {(Object.entries(OWNER_LABELS) as [Owner, string][]).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
         {categories.length > 0 && (
           <select
             value={categoryFilter ?? ""}

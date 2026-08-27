@@ -1,36 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { subscribeToTransactions } from "@/lib/repositories/transactionRepo";
 import type { Transaction } from "@/lib/types/transaction";
 
 interface UseTransactionsResult {
+  /** Hanya transaksi aktif (deletedAt === null) — dipakai di /finance normal. */
   transactions: Transaction[];
+  /** Transaksi di Recycle Bin (deletedAt !== null) — dipakai di /trash. */
+  deletedTransactions: Transaction[];
   loading: boolean;
   error: string | null;
 }
 
 /**
  * Satu-satunya cara komponen mengakses data transaksi real-time
- * (Bagian 4.2 aturan #4). Auto re-subscribe kalau user berubah.
+ * (Bagian 4.2 aturan #4). Satu subscription Firestore, dipecah jadi
+ * aktif/terhapus di client (Poin 7 Recycle Bin) — bukan dua listener
+ * terpisah, supaya tetap efisien.
  */
 export function useTransactions(): UseTransactionsResult {
   const { user } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [rawTransactions, setRawTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
 
-    // Tidak perlu setLoading(true) di sini: initial state sudah `true`,
-    // dan callback onSnapshot di bawah akan setLoading(false) begitu
-    // snapshot pertama datang. Menghindari setState sinkron di body effect.
     const unsubscribe = subscribeToTransactions(
       user.uid,
       (data) => {
-        setTransactions(data);
+        setRawTransactions(data);
         setLoading(false);
         setError(null);
       },
@@ -43,16 +45,21 @@ export function useTransactions(): UseTransactionsResult {
     return unsubscribe;
   }, [user]);
 
-  // user berubah (login/logout) di tengah render: reset state supaya tidak
-  // menampilkan data user sebelumnya sekilas. Pola "adjust state during
-  // render" React — menghindari setState sinkron di effect body
-  // (react-hooks/set-state-in-effect).
   const [syncedUser, setSyncedUser] = useState(user);
   if (user !== syncedUser) {
     setSyncedUser(user);
-    setTransactions([]);
+    setRawTransactions([]);
     setLoading(user ? true : false);
   }
 
-  return { transactions, loading, error };
+  const transactions = useMemo(
+    () => rawTransactions.filter((t) => t.deletedAt === null),
+    [rawTransactions]
+  );
+  const deletedTransactions = useMemo(
+    () => rawTransactions.filter((t) => t.deletedAt !== null),
+    [rawTransactions]
+  );
+
+  return { transactions, deletedTransactions, loading, error };
 }

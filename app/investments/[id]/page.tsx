@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useInvestments } from "@/lib/hooks/useInvestments";
-import { updateInvestment, deleteInvestment } from "@/lib/repositories/investmentRepo";
+import { updateInvestment, softDeleteInvestment } from "@/lib/repositories/investmentRepo";
 import {
   getInvestmentCurrentValue,
   getInvestmentGainLoss,
@@ -125,7 +125,8 @@ export default function InvestmentDetailPage() {
 
   async function handleDelete() {
     if (!user || !investment) return;
-    await deleteInvestment(user.uid, investment.id);
+    const editorName = resolveEditorName(user.displayName, user.email);
+    await softDeleteInvestment(user.uid, investment.id, editorName, investment.name);
     router.push("/investments");
   }
 
@@ -202,13 +203,16 @@ export default function InvestmentDetailPage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 border-t border-border-hairline pt-5">
-          <Field label="Target jual" htmlFor="targetSellPrice">
-            <CurrencyInput id="targetSellPrice" value={targetSellPrice} onChange={setTargetSellPrice} />
-          </Field>
-          <Field label="Target beli kembali" htmlFor="targetBuybackPrice">
-            <CurrencyInput id="targetBuybackPrice" value={targetBuybackPrice} onChange={setTargetBuybackPrice} />
-          </Field>
+        <div className="flex flex-col gap-3 border-t border-border-hairline pt-5">
+          <p className="text-sm text-text-secondary">Target harga (opsional)</p>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Target jual" htmlFor="targetSellPrice">
+              <CurrencyInput id="targetSellPrice" value={targetSellPrice} onChange={setTargetSellPrice} />
+            </Field>
+            <Field label="Target beli kembali" htmlFor="targetBuybackPrice">
+              <CurrencyInput id="targetBuybackPrice" value={targetBuybackPrice} onChange={setTargetBuybackPrice} />
+            </Field>
+          </div>
         </div>
 
         <Field label="Catatan" htmlFor="note">
@@ -233,7 +237,7 @@ export default function InvestmentDetailPage() {
             onClick={() => setConfirmOpen(true)}
             className="rounded-control border border-danger/40 px-4 py-2.5 text-sm text-danger hover:bg-danger-soft"
           >
-            Hapus
+            Pindahkan ke Recycle Bin
           </button>
           <button
             type="submit"
@@ -247,9 +251,9 @@ export default function InvestmentDetailPage() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Hapus investasi ini?"
-        description="Tindakan ini tidak bisa dibatalkan."
-        confirmLabel="Hapus"
+        title="Pindahkan ke Recycle Bin?"
+        description="Investasi akan dipindah ke Recycle Bin dan bisa dipulihkan kapan saja dalam 30 hari sebelum terhapus permanen."
+        confirmLabel="Pindahkan"
         onConfirm={handleDelete}
         onCancel={() => setConfirmOpen(false)}
       />

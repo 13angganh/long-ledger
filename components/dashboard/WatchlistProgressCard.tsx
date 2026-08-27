@@ -26,9 +26,9 @@ export function WatchlistProgressCard() {
   return (
     <SummaryCard href="/watchlist" title="Watchlist" icon={<BookmarkIcon />}>
       {inProgress.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {inProgress.slice(0, 3).map((item) => (
-            <div key={item.id} className="flex items-center justify-between gap-2">
+            <div key={item.id} className="flex flex-col gap-0.5">
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-medium text-text-primary">
                   {item.title}
@@ -37,7 +37,9 @@ export function WatchlistProgressCard() {
                   {WATCHLIST_TYPE_LABELS[item.type]}
                 </span>
               </div>
-              <LastEditedBy name={item.lastEditedBy} />
+              <div className="flex justify-end">
+                <LastEditedBy name={item.lastEditedBy} />
+              </div>
             </div>
           ))}
         </div>

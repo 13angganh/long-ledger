@@ -101,6 +101,8 @@ export interface Investment {
   lastEditedBy: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  /** Soft-delete (Poin 7): null = aktif, terisi = ada di Recycle Bin. */
+  deletedAt: Timestamp | null;
 
   // Hanya SATU dari field berikut yang diisi, sesuai `type` (Bagian 6.1a).
   depositoDetail?: DepositoDetail;
@@ -115,7 +117,7 @@ export interface Investment {
 
 export type InvestmentInput = Omit<
   Investment,
-  "id" | "createdAt" | "updatedAt"
+  "id" | "createdAt" | "updatedAt" | "deletedAt"
 >;
 
 /** Map type instrumen -> label Bahasa Indonesia yang dipakai di UI. */

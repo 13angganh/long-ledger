@@ -11,6 +11,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/watchlist": "Watchlist",
   "/contacts": "Kontak",
   "/settings": "Pengaturan",
+  "/trash": "Recycle Bin",
+  "/activity": "Log Aktivitas",
 };
 
 function resolveTitle(pathname: string): string {

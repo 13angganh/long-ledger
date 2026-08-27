@@ -45,17 +45,19 @@ export function FinanceSummaryCard() {
       </div>
 
       {recent.length > 0 ? (
-        <div className="flex flex-col gap-2 border-t border-border-hairline pt-3">
+        <div className="flex flex-col gap-2.5 border-t border-border-hairline pt-3">
           {recent.map((tx) => (
-            <div key={tx.id} className="flex items-center justify-between gap-2">
-              <span className="truncate text-xs text-text-secondary">
-                {tx.category || "Tanpa kategori"}
-              </span>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-text-primary">
-                  {tx.type === "income" ? "+" : "−"}
+            <div key={tx.id} className="flex flex-col gap-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-xs text-text-secondary">
+                  {tx.category || "Tanpa kategori"}
+                </span>
+                <span className="shrink-0 text-xs text-text-primary">
+                  {tx.type === "transfer" ? "⇄" : tx.type === "income" ? "+" : "−"}
                   {formatIDR(tx.amount)}
                 </span>
+              </div>
+              <div className="flex justify-end">
                 <LastEditedBy name={tx.lastEditedBy} />
               </div>
             </div>

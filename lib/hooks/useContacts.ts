@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { subscribeToContacts } from "@/lib/repositories/contactRepo";
 import type { Contact } from "@/lib/types/contact";
 
 interface UseContactsResult {
   contacts: Contact[];
+  deletedContacts: Contact[];
   loading: boolean;
   error: string | null;
 }
 
 export function useContacts(): UseContactsResult {
   const { user } = useAuth();
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [rawContacts, setRawContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +24,7 @@ export function useContacts(): UseContactsResult {
     const unsubscribe = subscribeToContacts(
       user.uid,
       (data) => {
-        setContacts(data);
+        setRawContacts(data);
         setLoading(false);
         setError(null);
       },
@@ -39,9 +40,18 @@ export function useContacts(): UseContactsResult {
   const [syncedUser, setSyncedUser] = useState(user);
   if (user !== syncedUser) {
     setSyncedUser(user);
-    setContacts([]);
+    setRawContacts([]);
     setLoading(user ? true : false);
   }
 
-  return { contacts, loading, error };
+  const contacts = useMemo(
+    () => rawContacts.filter((c) => c.deletedAt === null),
+    [rawContacts]
+  );
+  const deletedContacts = useMemo(
+    () => rawContacts.filter((c) => c.deletedAt !== null),
+    [rawContacts]
+  );
+
+  return { contacts, deletedContacts, loading, error };
 }

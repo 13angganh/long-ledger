@@ -5,11 +5,17 @@ import { useRouter } from "next/navigation";
 import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useAppMeta } from "@/lib/hooks/useAppMeta";
-import { createTransaction } from "@/lib/repositories/transactionRepo";
+import { createTransaction, createTransfer } from "@/lib/repositories/transactionRepo";
 import { addFinanceCategory } from "@/lib/repositories/metaRepo";
 import { CurrencyInput } from "@/components/shared/CurrencyInput";
 import { TagInput } from "@/components/shared/TagInput";
-import type { TransactionType } from "@/lib/types/transaction";
+import {
+  ACCOUNT_TYPE_LABELS,
+  OWNER_LABELS,
+  type TransactionType,
+  type AccountType,
+  type Owner,
+} from "@/lib/types/transaction";
 
 function resolveEditorName(displayName: string | null, email: string | null): string {
   return displayName || email?.split("@")[0] || "Pengguna";
@@ -29,8 +35,13 @@ export default function NewTransactionPage() {
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(toDateInputValue(new Date()));
+  const [accountType, setAccountType] = useState<AccountType>("cash");
+  const [owner, setOwner] = useState<Owner>("suami");
+  const [transferTo, setTransferTo] = useState<AccountType>("bank");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isTransfer = type === "transfer";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -39,21 +50,42 @@ export default function NewTransactionPage() {
       setError("Jumlah harus lebih dari 0.");
       return;
     }
+    if (isTransfer && accountType === transferTo) {
+      setError("Akun asal dan tujuan transfer tidak boleh sama.");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
     try {
       const editorName = resolveEditorName(user.displayName, user.email);
-      await createTransaction(user.uid, {
-        type,
-        amount,
-        category: category.trim(),
-        note: note.trim(),
-        date: Timestamp.fromDate(new Date(date)),
-        lastEditedBy: editorName,
-      });
-      if (category.trim()) {
-        await addFinanceCategory(user.uid, category.trim());
+
+      if (isTransfer) {
+        await createTransfer(user.uid, {
+          amount,
+          fromAccountType: accountType,
+          toAccountType: transferTo,
+          owner,
+          note: note.trim(),
+          date: Timestamp.fromDate(new Date(date)),
+          lastEditedBy: editorName,
+        });
+      } else {
+        await createTransaction(user.uid, {
+          type,
+          amount,
+          category: category.trim(),
+          note: note.trim(),
+          date: Timestamp.fromDate(new Date(date)),
+          lastEditedBy: editorName,
+          accountType,
+          owner,
+          transferToAccountType: null,
+          transferPairId: null,
+        });
+        if (category.trim()) {
+          await addFinanceCategory(user.uid, category.trim());
+        }
       }
       router.push("/finance");
     } catch {
@@ -69,8 +101,8 @@ export default function NewTransactionPage() {
       </h1>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {/* Type toggle */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Type toggle - Poin 9: tambah Transfer */}
+        <div className="grid grid-cols-3 gap-2">
           <TypeButton
             label="Pengeluaran"
             active={type === "expense"}
@@ -81,21 +113,89 @@ export default function NewTransactionPage() {
             active={type === "income"}
             onClick={() => setType("income")}
           />
+          <TypeButton
+            label="Transfer"
+            active={type === "transfer"}
+            onClick={() => setType("transfer")}
+          />
         </div>
 
         <Field label="Jumlah" htmlFor="amount">
           <CurrencyInput id="amount" value={amount} onChange={setAmount} required />
         </Field>
 
-        <Field label="Kategori" htmlFor="category">
-          <TagInput
-            id="category"
-            value={category}
-            onChange={setCategory}
-            suggestions={meta.categories.finance}
-            placeholder="mis. Makan, Transport, Gaji"
-          />
+        {isTransfer ? (
+          <>
+            <Field label="Dari akun" htmlFor="accountType">
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(ACCOUNT_TYPE_LABELS) as [AccountType, string][]).map(
+                  ([value, label]) => (
+                    <TypeButton
+                      key={value}
+                      label={label}
+                      active={accountType === value}
+                      onClick={() => setAccountType(value)}
+                    />
+                  )
+                )}
+              </div>
+            </Field>
+            <Field label="Ke akun" htmlFor="transferTo">
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(ACCOUNT_TYPE_LABELS) as [AccountType, string][]).map(
+                  ([value, label]) => (
+                    <TypeButton
+                      key={value}
+                      label={label}
+                      active={transferTo === value}
+                      onClick={() => setTransferTo(value)}
+                    />
+                  )
+                )}
+              </div>
+            </Field>
+          </>
+        ) : (
+          <Field label="Akun" htmlFor="accountType">
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.entries(ACCOUNT_TYPE_LABELS) as [AccountType, string][]).map(
+                ([value, label]) => (
+                  <TypeButton
+                    key={value}
+                    label={label}
+                    active={accountType === value}
+                    onClick={() => setAccountType(value)}
+                  />
+                )
+              )}
+            </div>
+          </Field>
+        )}
+
+        <Field label="Pemilik" htmlFor="owner">
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.entries(OWNER_LABELS) as [Owner, string][]).map(([value, label]) => (
+              <TypeButton
+                key={value}
+                label={label}
+                active={owner === value}
+                onClick={() => setOwner(value)}
+              />
+            ))}
+          </div>
         </Field>
+
+        {!isTransfer && (
+          <Field label="Kategori" htmlFor="category">
+            <TagInput
+              id="category"
+              value={category}
+              onChange={setCategory}
+              suggestions={meta.categories.finance}
+              placeholder="mis. Makan, Transport, Gaji"
+            />
+          </Field>
+        )}
 
         <Field label="Tanggal" htmlFor="date">
           <input
@@ -158,7 +258,7 @@ function TypeButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-control border px-4 py-2.5 text-sm font-medium transition-colors duration-200 ${
+      className={`rounded-control border px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
         active
           ? "border-accent-emerald bg-accent-emerald-soft text-text-primary"
           : "border-border-hairline text-text-secondary hover:text-text-primary"

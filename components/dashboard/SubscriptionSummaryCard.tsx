@@ -44,14 +44,16 @@ export function SubscriptionSummaryCard() {
       </div>
 
       {upcoming.length > 0 ? (
-        <div className="flex flex-col gap-2 border-t border-border-hairline pt-3">
+        <div className="flex flex-col gap-2.5 border-t border-border-hairline pt-3">
           {upcoming.map((sub) => (
-            <div key={sub.id} className="flex items-center justify-between gap-2">
-              <span className="truncate text-xs text-text-secondary">{sub.name}</span>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-text-primary">
+            <div key={sub.id} className="flex flex-col gap-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-xs text-text-secondary">{sub.name}</span>
+                <span className="shrink-0 text-xs text-text-primary">
                   {formatDateShortID(sub.nextRenewalDate.toDate())}
                 </span>
+              </div>
+              <div className="flex justify-end">
                 <LastEditedBy name={sub.lastEditedBy} />
               </div>
             </div>

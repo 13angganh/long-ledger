@@ -15,6 +15,8 @@ import {
   ChevronLeftIcon,
   XIcon,
   LogOutIcon,
+  TrashIcon,
+  ActivityIcon,
 } from "@/components/ui/icons";
 
 const NAV_ITEMS = [
@@ -114,6 +116,20 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
         </nav>
 
         <div className="flex flex-col gap-1 border-t border-border-hairline px-3 py-3">
+          <SidebarNavItem
+            href="/activity"
+            label="Log Aktivitas"
+            icon={<ActivityIcon />}
+            collapsed={collapsed}
+            onNavigate={onCloseMobile}
+          />
+          <SidebarNavItem
+            href="/trash"
+            label="Recycle Bin"
+            icon={<TrashIcon />}
+            collapsed={collapsed}
+            onNavigate={onCloseMobile}
+          />
           <SidebarNavItem
             href="/settings"
             label="Pengaturan"

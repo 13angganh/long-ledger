@@ -37,14 +37,16 @@ export function ContactReminderCard() {
       urgent={isUrgent}
     >
       {nearest.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {nearest.map((contact) => (
-            <div key={contact.id} className="flex items-center justify-between gap-2">
-              <span className="truncate text-sm text-text-primary">{contact.name}</span>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-text-tertiary">
+            <div key={contact.id} className="flex flex-col gap-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-sm text-text-primary">{contact.name}</span>
+                <span className="shrink-0 text-xs text-text-tertiary">
                   {formatDateShortID(contact.reminderDate!.toDate())}
                 </span>
+              </div>
+              <div className="flex justify-end">
                 <LastEditedBy name={contact.lastEditedBy} />
               </div>
             </div>

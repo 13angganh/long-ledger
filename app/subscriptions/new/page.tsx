@@ -10,6 +10,7 @@ import { addSubscriptionCategory } from "@/lib/repositories/metaRepo";
 import { CurrencyInput } from "@/components/shared/CurrencyInput";
 import { TagInput } from "@/components/shared/TagInput";
 import { DEFAULT_REMINDER_DAYS_BEFORE, type BillingCycle } from "@/lib/types/subscription";
+import { OWNER_LABELS, type Owner } from "@/lib/types/transaction";
 
 function resolveEditorName(displayName: string | null, email: string | null): string {
   return displayName || email?.split("@")[0] || "Pengguna";
@@ -29,6 +30,7 @@ export default function NewSubscriptionPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [nextRenewalDate, setNextRenewalDate] = useState(toDateInputValue(new Date()));
   const [category, setCategory] = useState("");
+  const [owner, setOwner] = useState<Owner>("suami");
   const [reminderDaysBefore, setReminderDaysBefore] = useState(DEFAULT_REMINDER_DAYS_BEFORE);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,7 @@ export default function NewSubscriptionPage() {
         status: "active",
         reminderDaysBefore,
         lastEditedBy: editorName,
+        owner,
       });
       if (category.trim()) {
         await addSubscriptionCategory(user.uid, category.trim());
@@ -125,6 +128,25 @@ export default function NewSubscriptionPage() {
             suggestions={meta.categories.subscription}
             placeholder="mis. Hiburan, Software, Kerja"
           />
+        </Field>
+
+        <Field label="Pemilik" htmlFor="owner">
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.entries(OWNER_LABELS) as [Owner, string][]).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setOwner(value)}
+                className={`rounded-control border px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
+                  owner === value
+                    ? "border-accent-emerald bg-accent-emerald-soft text-text-primary"
+                    : "border-border-hairline text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </Field>
 
         <Field label="Ingatkan berapa hari sebelum renewal" htmlFor="reminderDaysBefore">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useAppMeta } from "@/lib/hooks/useAppMeta";
 import {
@@ -9,8 +10,17 @@ import {
   removeContactTag,
 } from "@/lib/repositories/metaRepo";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { SettingsIcon } from "@/components/ui/icons";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { AppVersion } from "@/components/shared/AppVersion";
+import {
+  UserIcon,
+  DatabaseIcon,
+  PaletteIcon,
+  InfoIcon,
+  TrashIcon,
+  ActivityIcon,
+  ChevronRightIcon,
+  LogOutIcon,
+} from "@/components/ui/icons";
 
 type PendingRemoval = {
   kind: "finance" | "subscription" | "tag";
@@ -18,16 +28,16 @@ type PendingRemoval = {
 } | null;
 
 /**
- * Kelola kategori/tag autocomplete (Bagian 8 langkah 10). Hapus di sini
- * hanya menghapus dari daftar SARAN — tidak mengubah data transaksi/
- * subscription/kontak yang sudah memakai value tersebut (Bagian 6.1:
- * category/tags bersifat free-text, bukan enum kaku yang mengikat).
+ * Poin 13: Settings terstruktur 4 section — Akun, Data, Tampilan, Tentang.
+ * Kelola kategori/tag (fitur asli Bagian 8) sekarang jadi sub-bagian di
+ * dalam "Data", bukan satu-satunya isi halaman.
  */
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const { meta, loading } = useAppMeta();
   const [pending, setPending] = useState<PendingRemoval>(null);
   const [removing, setRemoving] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   async function handleConfirmRemove() {
     if (!user || !pending) return;
@@ -52,58 +62,138 @@ export default function SettingsPage() {
     meta.tags.length > 0;
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-6">
+    <div className="mx-auto flex max-w-lg flex-col gap-8">
       <h1 className="text-xl" style={{ fontFamily: "var(--font-display)" }}>
         Pengaturan
       </h1>
 
-      {loading ? (
-        <div className="flex flex-col gap-3">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-24 animate-pulse rounded-card border border-border-hairline bg-bg-surface"
+      {/* Akun */}
+      <SettingsSection icon={<UserIcon />} title="Akun">
+        <div className="flex items-center gap-3 rounded-card border border-border-hairline bg-bg-surface p-4">
+          {user?.photoURL ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.photoURL}
+              alt=""
+              className="h-11 w-11 shrink-0 rounded-full"
+              referrerPolicy="no-referrer"
             />
-          ))}
+          ) : (
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-emerald-soft text-sm font-medium text-accent-emerald">
+              {(user?.displayName || user?.email || "?").charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-text-primary">
+              {user?.displayName || "Tanpa nama"}
+            </p>
+            <p className="truncate text-xs text-text-tertiary">{user?.email}</p>
+          </div>
         </div>
-      ) : !hasAnyMeta ? (
-        <EmptyState
-          icon={<SettingsIcon width={22} height={22} />}
-          title="Belum ada kategori atau tag tersimpan"
-          description="Daftar kategori dan tag akan muncul di sini begitu kamu mulai memakainya di Finance, Langganan, atau Kontak."
-        />
-      ) : (
-        <>
-          <CategorySection
-            title="Kategori Finance"
-            description="Dipakai untuk autocomplete saat mencatat transaksi."
-            items={meta.categories.finance}
-            onRemove={(value) => setPending({ kind: "finance", value })}
-          />
-          <CategorySection
-            title="Kategori Langganan"
-            description="Dipakai untuk autocomplete saat mencatat langganan."
-            items={meta.categories.subscription}
-            onRemove={(value) => setPending({ kind: "subscription", value })}
-          />
-          <CategorySection
-            title="Tag Kontak"
-            description="Dipakai untuk autocomplete saat menambah tag kontak."
-            items={meta.tags}
-            onRemove={(value) => setPending({ kind: "tag", value })}
-          />
-        </>
-      )}
 
-      <div className="border-t border-border-hairline pt-6">
         <button
           type="button"
-          onClick={() => signOut()}
-          className="rounded-control border border-border-hairline px-4 py-2.5 text-sm text-text-secondary hover:border-danger/40 hover:text-danger"
+          onClick={() => setConfirmSignOut(true)}
+          className="flex items-center gap-2.5 rounded-control border border-border-hairline px-4 py-2.5 text-sm text-text-secondary hover:border-danger/40 hover:text-danger"
         >
+          <LogOutIcon width={16} height={16} />
           Keluar dari akun
         </button>
-      </div>
+      </SettingsSection>
+
+      {/* Data */}
+      <SettingsSection icon={<DatabaseIcon />} title="Data">
+        <Link
+          href="/activity"
+          className="card-interactive flex items-center justify-between gap-3 rounded-control border border-border-hairline bg-bg-surface px-4 py-3.5"
+        >
+          <div className="flex items-center gap-3">
+            <ActivityIcon width={18} height={18} className="text-text-tertiary" />
+            <div>
+              <p className="text-sm text-text-primary">Log Aktivitas</p>
+              <p className="text-xs text-text-tertiary">Riwayat siapa membuat/mengubah/menghapus data</p>
+            </div>
+          </div>
+          <ChevronRightIcon width={16} height={16} className="shrink-0 text-text-tertiary" />
+        </Link>
+
+        <Link
+          href="/trash"
+          className="card-interactive flex items-center justify-between gap-3 rounded-control border border-border-hairline bg-bg-surface px-4 py-3.5"
+        >
+          <div className="flex items-center gap-3">
+            <TrashIcon width={18} height={18} className="text-text-tertiary" />
+            <div>
+              <p className="text-sm text-text-primary">Recycle Bin</p>
+              <p className="text-xs text-text-tertiary">Pulihkan atau hapus permanen data terhapus</p>
+            </div>
+          </div>
+          <ChevronRightIcon width={16} height={16} className="shrink-0 text-text-tertiary" />
+        </Link>
+
+        <div className="flex flex-col gap-3 pt-1">
+          <p className="text-xs text-text-tertiary">
+            Kategori dan tag autocomplete — hapus di sini hanya membersihkan
+            daftar saran, tidak mengubah data yang sudah memakainya.
+          </p>
+
+          {loading ? (
+            <div className="flex flex-col gap-3">
+              {[0, 1].map((i) => (
+                <div
+                  key={i}
+                  className="h-20 animate-pulse rounded-control border border-border-hairline bg-bg-surface"
+                />
+              ))}
+            </div>
+          ) : !hasAnyMeta ? (
+            <p className="rounded-control border border-dashed border-border-hairline px-4 py-4 text-center text-xs text-text-tertiary">
+              Belum ada kategori atau tag tersimpan.
+            </p>
+          ) : (
+            <>
+              <CategorySection
+                title="Kategori Finance"
+                items={meta.categories.finance}
+                onRemove={(value) => setPending({ kind: "finance", value })}
+              />
+              <CategorySection
+                title="Kategori Langganan"
+                items={meta.categories.subscription}
+                onRemove={(value) => setPending({ kind: "subscription", value })}
+              />
+              <CategorySection
+                title="Tag Kontak"
+                items={meta.tags}
+                onRemove={(value) => setPending({ kind: "tag", value })}
+              />
+            </>
+          )}
+        </div>
+      </SettingsSection>
+
+      {/* Tampilan */}
+      <SettingsSection icon={<PaletteIcon />} title="Tampilan">
+        <div className="rounded-control border border-dashed border-border-hairline px-4 py-4">
+          <p className="text-sm text-text-secondary">Tema gelap (default)</p>
+          <p className="mt-1 text-xs text-text-tertiary">
+            Long Ledger saat ini hanya tersedia dalam tema gelap. Preferensi
+            tampilan lain (tema terang, ukuran teks) belum tersedia — akan
+            ditambah di update berikutnya kalau dibutuhkan.
+          </p>
+        </div>
+      </SettingsSection>
+
+      {/* Tentang */}
+      <SettingsSection icon={<InfoIcon />} title="Tentang">
+        <div className="rounded-control border border-border-hairline bg-bg-surface px-4 py-4 text-center">
+          <AppVersion />
+          <p className="mt-1 text-xs text-text-tertiary">
+            Dibuat untuk pencatatan berdua — finance, investasi, langganan,
+            watchlist, dan kontak dalam satu tempat.
+          </p>
+        </div>
+      </SettingsSection>
 
       <ConfirmDialog
         open={pending !== null}
@@ -113,28 +203,58 @@ export default function SettingsPage() {
         onConfirm={handleConfirmRemove}
         onCancel={() => setPending(null)}
       />
+
+      <ConfirmDialog
+        open={confirmSignOut}
+        title="Keluar dari akun?"
+        description="Kamu perlu masuk lagi dengan akun Google untuk mengakses Long Ledger."
+        confirmLabel="Keluar"
+        destructive={false}
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          signOut();
+        }}
+        onCancel={() => setConfirmSignOut(false)}
+      />
     </div>
+  );
+}
+
+function SettingsSection({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-text-secondary">
+        <span className="flex h-5 w-5 items-center justify-center">{icon}</span>
+        <h2 className="text-sm font-medium">{title}</h2>
+      </div>
+      <div className="flex flex-col gap-3">{children}</div>
+    </section>
   );
 }
 
 function CategorySection({
   title,
-  description,
   items,
   onRemove,
 }: {
   title: string;
-  description: string;
   items: string[];
   onRemove: (value: string) => void;
 }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-card border border-border-hairline bg-bg-surface p-5">
-      <p className="text-sm font-medium text-text-primary">{title}</p>
-      <p className="mt-0.5 text-xs text-text-tertiary">{description}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
+    <div className="rounded-control border border-border-hairline bg-bg-surface p-4">
+      <p className="text-xs font-medium text-text-primary">{title}</p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
         {items.map((item) => (
           <span
             key={item}
