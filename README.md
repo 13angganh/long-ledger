@@ -3,7 +3,7 @@
 PWA personal 5-in-1 (Finance, Investment, Subscription, Watchlist, Contacts)
 untuk pencatatan pribadi sehari-hari, dipakai berdua (shared account).
 
-**Versi saat ini:** 1.0.1
+**Versi saat ini:** 1.0.2
 **Status:** Development
 
 ---
@@ -384,6 +384,28 @@ Google) sudah selesai satu putaran dan lolos build+lint.
 
 
 ## 9. Changelog
+
+### [1.0.2] - 2026-09-08
+#### Fixed — Pemasukan/Pengeluaran/Net finance tampil Rp 0 padahal data ada
+Di Dashboard dan `/finance`, card "Pemasukan", "Pengeluaran", dan "Net"
+menampilkan Rp 0 meski transaksi sudah tercatat (terlihat benar di
+"Saldo Tunai"/"Saldo Bank" dan di daftar transaksi terbaru). Bukan data
+hilang — `getMonthlyTotal()` (`lib/selectors/financeSelectors.ts`) memang
+sengaja hanya menghitung transaksi bulan BERJALAN, sementara
+`getBalanceByAccount()` menjumlah seluruh histori tanpa filter bulan.
+Begitu kalender berganti bulan, transaksi bulan lalu otomatis tidak ikut
+terhitung di ketiga card itu — perilaku ini sebenarnya benar untuk laporan
+"bulan ini", tapi UI tidak memberi konteks apapun sehingga Rp 0 terlihat
+seperti bug.
+
+**Perbaikan**: tambah `hasTransactionsThisMonth()` di `financeSelectors.ts`
+(selector baru, logic `getMonthlyTotal()` sendiri tidak diubah — sudah
+benar). `FinanceSummaryCard.tsx` dan `app/finance/page.tsx` sekarang
+menampilkan catatan "Belum ada transaksi bulan ini" saat kondisi itu
+terjadi (ada transaksi di histori, tapi tidak ada yang jatuh di bulan
+berjalan), alih-alih menampilkan Rp 0 tanpa penjelasan — pola yang sama
+dengan empty state "Belum ada investasi tercatat." yang sudah ada di
+Dashboard.
 
 ### [1.0.1] - 2026-08-27
 #### Fixed — insiden kritis: data lama "hilang" pasca-upgrade ke v1.0.0

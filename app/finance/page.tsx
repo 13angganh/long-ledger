@@ -6,6 +6,7 @@ import { useTransactions } from "@/lib/hooks/useTransactions";
 import {
   getMonthlyTotal,
   getBalanceByAccount,
+  hasTransactionsThisMonth,
   filterByCategory,
   filterByType,
   filterByOwner,
@@ -27,6 +28,7 @@ export default function FinancePage() {
 
   const monthlyTotal = useMemo(() => getMonthlyTotal(transactions), [transactions]);
   const balances = useMemo(() => getBalanceByAccount(transactions), [transactions]);
+  const hasDataThisMonth = useMemo(() => hasTransactionsThisMonth(transactions), [transactions]);
 
   const categories = useMemo(() => {
     const set = new Set(transactions.map((t) => t.category).filter(Boolean));
@@ -73,6 +75,12 @@ export default function FinancePage() {
       </div>
 
       {/* Summary bulan ini */}
+      {!hasDataThisMonth && transactions.length > 0 && (
+        <p className="text-xs text-text-tertiary">
+          Belum ada transaksi bulan ini — ringkasan di bawah menghitung bulan
+          berjalan saja. Saldo di atas tetap dari seluruh histori.
+        </p>
+      )}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="rounded-card border border-border-hairline bg-bg-surface p-3 sm:p-4">
           <p className="text-xs text-text-tertiary">Pemasukan</p>

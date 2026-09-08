@@ -5,6 +5,7 @@ import {
   getMonthlyTotal,
   getLast7DaysNet,
   getRecentTransactions,
+  hasTransactionsThisMonth,
 } from "@/lib/selectors/financeSelectors";
 import { SummaryCard } from "./SummaryCard";
 import { Sparkline } from "@/components/shared/Sparkline";
@@ -28,6 +29,8 @@ export function FinanceSummaryCard() {
   const monthlyTotal = getMonthlyTotal(transactions);
   const sparklineData = getLast7DaysNet(transactions);
   const recent = getRecentTransactions(transactions, 3);
+  const hasDataThisMonth = hasTransactionsThisMonth(transactions);
+  const hasAnyData = transactions.length > 0;
 
   return (
     <SummaryCard href="/finance" title="Finance" icon={<LedgerLinesIcon />}>
@@ -39,7 +42,9 @@ export function FinanceSummaryCard() {
           >
             {formatIDR(monthlyTotal.net)}
           </p>
-          <p className="mt-1 text-xs text-text-tertiary">Net bulan ini</p>
+          <p className="mt-1 text-xs text-text-tertiary">
+            {!hasDataThisMonth && hasAnyData ? "Belum ada transaksi bulan ini" : "Net bulan ini"}
+          </p>
         </div>
         <Sparkline points={sparklineData} />
       </div>

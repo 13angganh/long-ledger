@@ -58,6 +58,23 @@ export function getMonthlyTotal(
   );
 }
 
+/**
+ * True kalau ada transaksi non-transfer di bulan berjalan. Dipakai UI untuk
+ * membedakan "Rp 0 karena memang belum ada transaksi bulan ini" (tampilkan
+ * pesan konteks) dari "Rp 0 karena semua nilainya kebetulan nol" — supaya
+ * saldo bulan lalu yang tidak ikut terhitung di getMonthlyTotal tidak
+ * terlihat seperti data hilang/bug.
+ */
+export function hasTransactionsThisMonth(
+  transactions: Transaction[],
+  referenceDate: Date = new Date()
+): boolean {
+  const monthStart = startOfMonth(referenceDate);
+  return transactions.some(
+    (tx) => tx.type !== "transfer" && tx.date.toDate() >= monthStart
+  );
+}
+
 export interface SparklinePoint {
   date: string; // ISO date, untuk key React
   net: number; // net harian (income - expense), transfer dikecualikan
