@@ -16,6 +16,12 @@ function startOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
+/** Awal bulan BERIKUTNYA — dipakai sebagai batas atas (eksklusif) supaya
+ * filter "bulan X" tidak ikut menghitung transaksi dari bulan setelahnya. */
+function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+}
+
 function isSameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -31,19 +37,21 @@ interface MonthlyTotal {
 }
 
 /**
- * Total pemasukan/pengeluaran/net untuk bulan berjalan (default: bulan ini).
- * Transfer DIKECUALIKAN sepenuhnya dari perhitungan ini.
+ * Total pemasukan/pengeluaran/net untuk SATU bulan spesifik (default: bulan
+ * ini) — bukan "bulan X dan seterusnya". Transfer DIKECUALIKAN sepenuhnya
+ * dari perhitungan ini.
  */
 export function getMonthlyTotal(
   transactions: Transaction[],
   referenceDate: Date = new Date()
 ): MonthlyTotal {
   const monthStart = startOfMonth(referenceDate);
+  const monthEnd = endOfMonth(referenceDate);
 
   return transactions.reduce<MonthlyTotal>(
     (acc, tx) => {
       const txDate = tx.date.toDate();
-      if (txDate < monthStart) return acc;
+      if (txDate < monthStart || txDate >= monthEnd) return acc;
       if (tx.type === "transfer") return acc;
 
       if (tx.type === "income") {
@@ -70,8 +78,10 @@ export function hasTransactionsThisMonth(
   referenceDate: Date = new Date()
 ): boolean {
   const monthStart = startOfMonth(referenceDate);
+  const monthEnd = endOfMonth(referenceDate);
   return transactions.some(
-    (tx) => tx.type !== "transfer" && tx.date.toDate() >= monthStart
+    (tx) =>
+      tx.type !== "transfer" && tx.date.toDate() >= monthStart && tx.date.toDate() < monthEnd
   );
 }
 
@@ -131,11 +141,13 @@ export function getExpenseByCategory(
   referenceDate: Date = new Date()
 ): CategoryBreakdown[] {
   const monthStart = startOfMonth(referenceDate);
+  const monthEnd = endOfMonth(referenceDate);
   const totals = new Map<string, number>();
 
   for (const tx of transactions) {
     if (tx.type !== "expense") continue;
-    if (tx.date.toDate() < monthStart) continue;
+    const txDate = tx.date.toDate();
+    if (txDate < monthStart || txDate >= monthEnd) continue;
     const key = tx.category || "Tanpa kategori";
     totals.set(key, (totals.get(key) ?? 0) + tx.amount);
   }
@@ -164,6 +176,7 @@ export function getBreakdownByOwner(
   referenceDate: Date = new Date()
 ): OwnerBreakdown[] {
   const monthStart = startOfMonth(referenceDate);
+  const monthEnd = endOfMonth(referenceDate);
   const totals: Record<Owner, { income: number; expense: number }> = {
     suami: { income: 0, expense: 0 },
     istri: { income: 0, expense: 0 },
@@ -171,7 +184,8 @@ export function getBreakdownByOwner(
 
   for (const tx of transactions) {
     if (tx.type === "transfer") continue;
-    if (tx.date.toDate() < monthStart) continue;
+    const txDate = tx.date.toDate();
+    if (txDate < monthStart || txDate >= monthEnd) continue;
     if (tx.type === "income") {
       totals[tx.owner].income += tx.amount;
     } else {
@@ -221,6 +235,64 @@ export function getBalanceByAccount(transactions: Transaction[]): AccountBalance
     { accountType: "cash", label: "Tunai", balance: cash },
     { accountType: "bank", label: "Bank", balance: bank },
   ];
+}
+
+export interface MonthOption {
+  /** Key stabil "YYYY-MM" untuk value <select> dan perbandingan filter. */
+  key: string;
+  year: number;
+  /** 0-indexed, sama seperti Date.getMonth() — bulan Januari = 0. */
+  month: number;
+  /** Label tampilan Indonesia, mis. "September 2026". */
+  label: string;
+}
+
+/**
+ * Daftar bulan yang bisa dipilih di selector /finance: setiap bulan yang
+ * benar-benar punya transaksi, DITAMBAH bulan kalender saat ini walau belum
+ * ada datanya (supaya user selalu bisa balik ke "bulan berjalan" walau
+ * kosong) — diurut dari terbaru ke terlama.
+ */
+export function getAvailableMonths(
+  transactions: Transaction[],
+  referenceDate: Date = new Date()
+): MonthOption[] {
+  const seen = new Map<string, MonthOption>();
+
+  const addMonth = (date: Date) => {
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    if (seen.has(key)) return;
+    seen.set(key, {
+      key,
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      label: new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(date),
+    });
+  };
+
+  addMonth(referenceDate);
+  for (const tx of transactions) {
+    addMonth(tx.date.toDate());
+  }
+
+  return Array.from(seen.values()).sort((a, b) =>
+    b.key.localeCompare(a.key)
+  );
+}
+
+/** Filter transaksi ke satu bulan (dari MonthOption) — untuk daftar
+ * transaksi di /finance supaya konsisten dengan card ringkasan di atasnya. */
+export function filterByMonth(
+  transactions: Transaction[],
+  monthOption: MonthOption | null
+): Transaction[] {
+  if (!monthOption) return transactions;
+  const monthStart = new Date(monthOption.year, monthOption.month, 1);
+  const monthEnd = new Date(monthOption.year, monthOption.month + 1, 1);
+  return transactions.filter((tx) => {
+    const txDate = tx.date.toDate();
+    return txDate >= monthStart && txDate < monthEnd;
+  });
 }
 
 /** Filter transaksi berdasarkan kategori (untuk halaman /finance). */

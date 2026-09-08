@@ -6,10 +6,12 @@ import { useTransactions } from "@/lib/hooks/useTransactions";
 import {
   getMonthlyTotal,
   getBalanceByAccount,
-  hasTransactionsThisMonth,
+  getAvailableMonths,
+  filterByMonth,
   filterByCategory,
   filterByType,
   filterByOwner,
+  type MonthOption,
 } from "@/lib/selectors/financeSelectors";
 import { TransactionListItem } from "@/components/shared/TransactionListItem";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -26,9 +28,23 @@ export default function FinancePage() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [ownerFilter, setOwnerFilter] = useState<Owner | null>(null);
 
-  const monthlyTotal = useMemo(() => getMonthlyTotal(transactions), [transactions]);
+  const availableMonths = useMemo(() => getAvailableMonths(transactions), [transactions]);
+  // Default: bulan kalender saat ini — availableMonths selalu memuat ini
+  // sebagai entri pertama (lihat getAvailableMonths), jadi aman diambil
+  // langsung tanpa perlu useEffect terpisah.
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() => availableMonths[0].key);
+  const selectedMonth: MonthOption =
+    availableMonths.find((m) => m.key === selectedMonthKey) ?? availableMonths[0];
+  const monthReferenceDate = useMemo(
+    () => new Date(selectedMonth.year, selectedMonth.month, 1),
+    [selectedMonth]
+  );
+
+  const monthlyTotal = useMemo(
+    () => getMonthlyTotal(transactions, monthReferenceDate),
+    [transactions, monthReferenceDate]
+  );
   const balances = useMemo(() => getBalanceByAccount(transactions), [transactions]);
-  const hasDataThisMonth = useMemo(() => hasTransactionsThisMonth(transactions), [transactions]);
 
   const categories = useMemo(() => {
     const set = new Set(transactions.map((t) => t.category).filter(Boolean));
@@ -36,11 +52,12 @@ export default function FinancePage() {
   }, [transactions]);
 
   const filtered = useMemo(() => {
-    let result = filterByType(transactions, typeFilter);
+    let result = filterByMonth(transactions, selectedMonth);
+    result = filterByType(result, typeFilter);
     result = filterByCategory(result, categoryFilter);
     result = filterByOwner(result, ownerFilter);
     return result;
-  }, [transactions, typeFilter, categoryFilter, ownerFilter]);
+  }, [transactions, selectedMonth, typeFilter, categoryFilter, ownerFilter]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,13 +91,21 @@ export default function FinancePage() {
         ))}
       </div>
 
-      {/* Summary bulan ini */}
-      {!hasDataThisMonth && transactions.length > 0 && (
-        <p className="text-xs text-text-tertiary">
-          Belum ada transaksi bulan ini — ringkasan di bawah menghitung bulan
-          berjalan saja. Saldo di atas tetap dari seluruh histori.
-        </p>
-      )}
+      {/* Selector bulan + Summary */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-text-tertiary">Ringkasan untuk</p>
+        <select
+          value={selectedMonth.key}
+          onChange={(e) => setSelectedMonthKey(e.target.value)}
+          className="rounded-control border border-border-hairline bg-bg-surface px-3 py-1.5 text-sm text-text-secondary outline-none focus:border-accent-emerald"
+        >
+          {availableMonths.map((m) => (
+            <option key={m.key} value={m.key}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="rounded-card border border-border-hairline bg-bg-surface p-3 sm:p-4">
           <p className="text-xs text-text-tertiary">Pemasukan</p>
@@ -184,7 +209,9 @@ export default function FinancePage() {
           description={
             transactions.length === 0
               ? "Mulai catat pemasukan atau pengeluaran pertama supaya ringkasan bulanan mulai terisi."
-              : "Coba ubah filter untuk melihat transaksi lain."
+              : !typeFilter && !categoryFilter && !ownerFilter
+                ? `Belum ada transaksi di ${selectedMonth.label}. Coba pilih bulan lain di atas.`
+                : "Coba ubah filter untuk melihat transaksi lain."
           }
           actionLabel={transactions.length === 0 ? "Tambah transaksi" : undefined}
           onAction={

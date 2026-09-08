@@ -3,7 +3,7 @@
 PWA personal 5-in-1 (Finance, Investment, Subscription, Watchlist, Contacts)
 untuk pencatatan pribadi sehari-hari, dipakai berdua (shared account).
 
-**Versi saat ini:** 1.0.2
+**Versi saat ini:** 1.1.0
 **Status:** Development
 
 ---
@@ -278,7 +278,7 @@ production-ready untuk penggunaan sehari-hari (rilis 2026-08-24).
 
 ## 8. Status & Progress
 
-**Update terakhir:** 2026-08-24
+**Update terakhir:** 2026-09-08
 
 ### Selesai
 - [x] Setup fondasi (Firebase config, design tokens, font)
@@ -287,7 +287,10 @@ production-ready untuk penggunaan sehari-hari (rilis 2026-08-24).
 - [x] Layout shell (Sidebar hamburger + auto-collapse, TopBar, AppShell)
 - [x] Modul Finance — termasuk **tunai/bank per pemilik (suami/istri)** dan
       **transfer tunai↔bank** sebagai aksi atomic (dua dokumen sekaligus,
-      dikecualikan dari income/expense), saldo per akun di halaman list
+      dikecualikan dari income/expense), saldo per akun di halaman list,
+      **selector bulan & tahun** di `/finance` (v1.1.0) yang mengontrol
+      card ringkasan DAN daftar transaksi sekaligus, dengan bulan kalender
+      berjalan sebagai default
 - [x] Modul Investment (9 jenis instrumen, form step-based conditional,
       UI target jual/beli dirapikan, dashboard card)
 - [x] Modul Subscription — termasuk **per pemilik (suami/istri)**,
@@ -384,6 +387,56 @@ Google) sudah selesai satu putaran dan lolos build+lint.
 
 
 ## 9. Changelog
+
+### [1.1.0] - 2026-09-08
+#### Added — selector bulan & tahun di `/finance`
+Latar belakang: v1.0.2 hanya menambah teks penjelasan ("Belum ada transaksi
+bulan ini") saat card Pemasukan/Pengeluaran/Net menampilkan Rp 0 karena
+transaksi yang ada jatuh di bulan lain — tapi teks kecil itu masih mudah
+terlewat dan ambigu (user tetap harus percaya teksnya, tidak bisa
+memverifikasi sendiri dengan lihat bulan lain). Solusinya: beri kendali
+langsung ke user, bukan sekadar penjelasan.
+
+- **Selector bulan** (dropdown) di `/finance`, di atas card ringkasan.
+  Daftar bulan dihasilkan dari `getAvailableMonths()` (baru,
+  `financeSelectors.ts`): setiap bulan yang benar-benar punya transaksi,
+  ditambah bulan kalender berjalan walau kosong, diurut terbaru→terlama.
+  Default: bulan kalender saat ini (perilaku lama, tidak berubah kalau
+  user tidak menyentuh selector-nya).
+- Memilih bulan mengubah **dua hal sekaligus** supaya tidak ada lagi celah
+  antara "angka ringkasan bilang apa" vs "daftar transaksi menunjukkan
+  apa": (1) card Pemasukan/Pengeluaran/Net (`getMonthlyTotal()`) dihitung
+  untuk bulan yang dipilih, (2) daftar transaksi di bawahnya ikut
+  terfilter ke bulan yang sama (`filterByMonth()`, baru — disusun sebelum
+  filter tipe/kategori/pemilik yang sudah ada).
+- Empty state daftar transaksi sekarang menyebut nama bulan yang dipilih
+  ("Belum ada transaksi di Agustus 2026. Coba pilih bulan lain di atas.")
+  kalau kekosongan itu murni karena bulan yang dipilih, bukan filter
+  tipe/kategori/pemilik.
+- **Saldo Tunai/Saldo Bank tetap TIDAK terpengaruh selector bulan** —
+  keduanya sengaja tetap saldo berjalan dari seluruh histori
+  (`getBalanceByAccount()`, tidak diubah), karena itu representasi "uang
+  yang benar-benar ada sekarang", bukan angka per-periode.
+- Teks penjelasan "Belum ada transaksi bulan ini" di `/finance` dari
+  v1.0.2 **dihapus** — sudah tidak relevan begitu ada selector eksplisit
+  (bulan yang ditampilkan sekarang selalu jelas dari dropdown-nya
+  sendiri). Versi Dashboard (`FinanceSummaryCard`) dari label yang sama
+  **tetap dipertahankan** — card Dashboard sengaja tidak diberi selector
+  (ringkasan sekilas, bukan tempat kontrol detail), jadi teks penjelasan
+  itu masih relevan di sana.
+
+#### Fixed — bug batas atas bulan di 3 fungsi selector
+Ditemukan saat membangun fitur di atas: `getMonthlyTotal()`,
+`getExpenseByCategory()`, dan `getBreakdownByOwner()` selama ini hanya
+memfilter transaksi yang **lebih lama** dari bulan target
+(`txDate < monthStart`), tanpa batas atas. Selama `referenceDate` selalu
+"sekarang" (tidak pernah ada transaksi bertanggal di masa depan), bug ini
+tidak pernah kelihatan. Begitu selector bulan memungkinkan user memilih
+bulan LAMA sementara transaksi bulan-bulan setelahnya juga ada, ketiga
+fungsi itu akan ikut menjumlah transaksi dari bulan-bulan setelah target
+— salah hitung, bukan cuma salah tampil. Diperbaiki dengan menambah
+`endOfMonth()` (awal bulan berikutnya, dipakai sebagai batas eksklusif)
+di ketiganya, plus di `hasTransactionsThisMonth()` untuk konsistensi.
 
 ### [1.0.2] - 2026-09-08
 #### Fixed — Pemasukan/Pengeluaran/Net finance tampil Rp 0 padahal data ada
