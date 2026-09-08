@@ -3,7 +3,7 @@
 PWA personal 5-in-1 (Finance, Investment, Subscription, Watchlist, Contacts)
 untuk pencatatan pribadi sehari-hari, dipakai berdua (shared account).
 
-**Versi saat ini:** 1.0.0
+**Versi saat ini:** 1.0.1
 **Status:** Development
 
 ---
@@ -384,6 +384,42 @@ Google) sudah selesai satu putaran dan lolos build+lint.
 
 
 ## 9. Changelog
+
+### [1.0.1] - 2026-08-27
+#### Fixed — insiden kritis: data lama "hilang" pasca-upgrade ke v1.0.0
+Setelah v1.0.0 dipakai dengan akun asli (`angga131095@gmail.com`), transaksi
+finance yang dicatat SEBELUM v1.0.0 tidak lagi tampil di `/finance`, dan
+halaman `/trash` gagal dimuat total ("This page couldn't load"). Data
+**tidak hilang dari Firestore** (terkonfirmasi via Firebase Console) — akar
+masalah murni di lapisan baca:
+- Dokumen lama dibuat sebelum field `deletedAt`, `accountType`, `owner`
+  (dan field serupa di modul lain) ditambahkan ke skema. Field itu bukan
+  `null` di dokumen lama, melainkan **tidak ada key-nya sama sekali** —
+  terbaca sebagai `undefined` oleh converter yang lama.
+- `undefined !== null` bernilai `true` di JavaScript, jadi dokumen itu
+  gagal filter "aktif" (`deletedAt === null`) TAPI secara teknis lolos
+  filter "di trash" (`deletedAt !== null`) — pindah ke Recycle Bin tanpa
+  diminta.
+- Di halaman `/trash`, kode memanggil `item.deletedAt.toDate()` — untuk
+  dokumen yang field-nya benar-benar `undefined` (bukan Timestamp valid),
+  ini melempar exception dan menjatuhkan seluruh halaman.
+
+**Perbaikan** (`lib/firebase/converters.ts`): setiap converter sekarang
+menerima parameter `defaults` — field yang tidak ada di dokumen Firestore
+lama otomatis diisi nilai default aman saat dibaca (`deletedAt: null`,
+`accountType: "cash"`, `owner: "suami"`, dst.), SEBELUM data itu sampai ke
+komponen manapun. Ditambah pengaman defense-in-depth di `/trash` (skip
+item dengan `deletedAt` tidak valid alih-alih men-crash seluruh halaman).
+
+**Pelajaran untuk pengembangan selanjutnya**: setiap kali field BARU
+ditambahkan ke skema modul yang sudah punya data produksi, WAJIB
+menambahkan default-nya di `makeConverter()` pada saat yang sama — jangan
+asumsikan field itu ada di semua dokumen yang sudah pernah ditulis.
+
+#### Changed
+- Settings: hapus link duplikat ke Log Aktivitas & Recycle Bin dari
+  section Data — keduanya sudah ada permanen di sidebar, tidak perlu
+  diulang di Settings.
 
 ### [1.0.0] - 2026-08-24
 #### Added

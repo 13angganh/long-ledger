@@ -120,6 +120,15 @@ export default function TrashPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {trashItems.map((item) => {
+            // Defense-in-depth: kalau deletedAt entah bagaimana tidak valid
+            // (seharusnya tidak mungkin lagi setelah fix converter, tapi
+            // lebih aman daripada bikin seluruh halaman crash), skip item
+            // ini daripada melempar error yang menghentikan render semua
+            // item lain.
+            if (!item.deletedAt || typeof item.deletedAt.toDate !== "function") {
+              return null;
+            }
+
             const deletedDate = item.deletedAt.toDate();
             const daysLeft = AUTO_PURGE_DAYS - daysAgo(deletedDate);
             const nearPurge = isPastAutoPurgeThreshold(deletedDate) || daysLeft <= 3;

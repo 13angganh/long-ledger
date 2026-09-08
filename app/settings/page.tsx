@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useAppMeta } from "@/lib/hooks/useAppMeta";
 import {
@@ -16,9 +15,6 @@ import {
   DatabaseIcon,
   PaletteIcon,
   InfoIcon,
-  TrashIcon,
-  ActivityIcon,
-  ChevronRightIcon,
   LogOutIcon,
 } from "@/components/ui/icons";
 
@@ -103,73 +99,43 @@ export default function SettingsPage() {
 
       {/* Data */}
       <SettingsSection icon={<DatabaseIcon />} title="Data">
-        <Link
-          href="/activity"
-          className="card-interactive flex items-center justify-between gap-3 rounded-control border border-border-hairline bg-bg-surface px-4 py-3.5"
-        >
-          <div className="flex items-center gap-3">
-            <ActivityIcon width={18} height={18} className="text-text-tertiary" />
-            <div>
-              <p className="text-sm text-text-primary">Log Aktivitas</p>
-              <p className="text-xs text-text-tertiary">Riwayat siapa membuat/mengubah/menghapus data</p>
-            </div>
-          </div>
-          <ChevronRightIcon width={16} height={16} className="shrink-0 text-text-tertiary" />
-        </Link>
+        <p className="text-xs text-text-tertiary">
+          Kategori dan tag autocomplete — hapus di sini hanya membersihkan
+          daftar saran, tidak mengubah data yang sudah memakainya.
+        </p>
 
-        <Link
-          href="/trash"
-          className="card-interactive flex items-center justify-between gap-3 rounded-control border border-border-hairline bg-bg-surface px-4 py-3.5"
-        >
-          <div className="flex items-center gap-3">
-            <TrashIcon width={18} height={18} className="text-text-tertiary" />
-            <div>
-              <p className="text-sm text-text-primary">Recycle Bin</p>
-              <p className="text-xs text-text-tertiary">Pulihkan atau hapus permanen data terhapus</p>
-            </div>
+        {loading ? (
+          <div className="flex flex-col gap-3">
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                className="h-20 animate-pulse rounded-control border border-border-hairline bg-bg-surface"
+              />
+            ))}
           </div>
-          <ChevronRightIcon width={16} height={16} className="shrink-0 text-text-tertiary" />
-        </Link>
-
-        <div className="flex flex-col gap-3 pt-1">
-          <p className="text-xs text-text-tertiary">
-            Kategori dan tag autocomplete — hapus di sini hanya membersihkan
-            daftar saran, tidak mengubah data yang sudah memakainya.
+        ) : !hasAnyMeta ? (
+          <p className="rounded-control border border-dashed border-border-hairline px-4 py-4 text-center text-xs text-text-tertiary">
+            Belum ada kategori atau tag tersimpan.
           </p>
-
-          {loading ? (
-            <div className="flex flex-col gap-3">
-              {[0, 1].map((i) => (
-                <div
-                  key={i}
-                  className="h-20 animate-pulse rounded-control border border-border-hairline bg-bg-surface"
-                />
-              ))}
-            </div>
-          ) : !hasAnyMeta ? (
-            <p className="rounded-control border border-dashed border-border-hairline px-4 py-4 text-center text-xs text-text-tertiary">
-              Belum ada kategori atau tag tersimpan.
-            </p>
-          ) : (
-            <>
-              <CategorySection
-                title="Kategori Finance"
-                items={meta.categories.finance}
-                onRemove={(value) => setPending({ kind: "finance", value })}
-              />
-              <CategorySection
-                title="Kategori Langganan"
-                items={meta.categories.subscription}
-                onRemove={(value) => setPending({ kind: "subscription", value })}
-              />
-              <CategorySection
-                title="Tag Kontak"
-                items={meta.tags}
-                onRemove={(value) => setPending({ kind: "tag", value })}
-              />
-            </>
-          )}
-        </div>
+        ) : (
+          <>
+            <CategorySection
+              title="Kategori Finance"
+              items={meta.categories.finance}
+              onRemove={(value) => setPending({ kind: "finance", value })}
+            />
+            <CategorySection
+              title="Kategori Langganan"
+              items={meta.categories.subscription}
+              onRemove={(value) => setPending({ kind: "subscription", value })}
+            />
+            <CategorySection
+              title="Tag Kontak"
+              items={meta.tags}
+              onRemove={(value) => setPending({ kind: "tag", value })}
+            />
+          </>
+        )}
       </SettingsSection>
 
       {/* Tampilan */}
